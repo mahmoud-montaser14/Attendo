@@ -17,7 +17,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 recognizer = cv2.face.LBPHFaceRecognizer_create()
 recognizer.read("face_recognizer.yml")
-emotion_model = tf.keras.models.load_model("model_check_85_196.keras")
+emotion_model = tf.keras.models.load_model("model_check_85_196.h5")
 CSV_FILE = "students.csv"
 MODEL_PATH = "face_recognizer2.yml"
 
