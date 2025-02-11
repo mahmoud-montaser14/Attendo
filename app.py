@@ -52,6 +52,7 @@ def detect_emotion(image):
         predictions = emotion_model.predict(face_resized)
         emotion_index = np.argmax(predictions)
         emotions[emotion_labels[emotion_index]] += 1
+        emotions = {str(k): str(v) for k, v in emotions.items()}
     return emotions
 
 
@@ -60,7 +61,9 @@ def recognize_students(image):
     recognized_students = {}
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(100, 100))
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
     for (x, y, w, h) in faces:
         face_roi = gray[y:y + h, x:x + w]
         face_resized = cv2.resize(face_roi, (300, 300))
@@ -194,22 +197,28 @@ def take_attendance():
         return jsonify({"error": "Invalid image data"}), 400
 
     recognized_students = recognize_students(image)
-
-    # Define backend endpoint
+    print(recognized_students)
+    # # Define backend endpoint
     backend_url = "http://reco.runasp.net/api/Attendance/record"
 
-    try:
-        # Send data to backend
-        response = requests.post(backend_url, json=recognized_students)
-        if response.status_code == 200:
-            return jsonify(recognized_students), 200
-        else:
-            return jsonify({"no one":0}) #"error": "Failed to store attendance", "details": response.text}
+    if recognized_students :
+        try:
+            # Data = jsonify(recognized_students,subject_lec_data)
+            # إرسال البيانات عبر POST
+            response = requests.post(backend_url, json=[recognized_students,subject_lec_data])
 
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": "Could not reach backend", "details": str(e)}), 500
-    
-    # return jsonify(recognized_students), 200
+            # التحقق من نجاح العملية
+            if response.status_code == 200:
+                return jsonify({"message": "Data sent successfully"}), 200
+            else:
+                return jsonify({"error": "Failed to send data", "status_code": response.status_code}), response.status_code
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+        
+    else:    
+        
+        return jsonify({"Data":"Data is empty"}), 200
 
 
 @app.route("/detect_emotion", methods=["POST"])
@@ -225,28 +234,60 @@ def detect_emotion_api():
         return jsonify({"error": "Invalid image data"}), 400
 
     emotions = detect_emotion(image)
+    # print(emotions)
 
-    # Define backend endpoint
-    backend_url = "http://reco.runasp.net/api/Emotion/detect"
+    # # Define backend endpoint
+    backend_url = "http://reco.runasp.net/api/Emotion/emotion"
 
-    try:
-        # Send data to backend
-        response = requests.post(backend_url, json=emotions)
-        if response.status_code == 200:
-            return jsonify(emotions), 200
-        else:
-            return jsonify({"error": "Failed to store emotions", "details": response.text}), response.status_code
+    if not all(int(value) == 0 for value in emotions.values()):
+        try:
+            # Data = jsonify(recognized_students,subject_lec_data)
+            # إرسال البيانات عبر POST
+            response = requests.post(backend_url, json=[emotions,subject_lec_data])
 
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": "Could not reach backend", "details": str(e)}), 500
-    
-    # return jsonify(emotions), 200
+            # التحقق من نجاح العملية
+            if response.status_code == 200:
+                return jsonify({"message": "Data sent successfully"}), 200
+            else:
+                return jsonify({"error": "Failed to send data", "status_code": response.status_code}), response.status_code
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+        
+    else:    
+        
+        return jsonify({"Data":"Data is empty"}), 200
 
 
 @app.route("/train_model", methods=["POST"])
 def train():
     train_lbph()
     return jsonify(f'Done, Model trained'), 200
+
+
+
+subject_lec_data = {}  # Initialize the global variable
+
+@app.route("/subject", methods=["POST"])
+def subject():
+    global subject_lec_data  # Use the global variable
+
+    subject_lec = request.get_json()  
+
+    if not subject_lec:
+        return jsonify({"error": "No data received"}), 400
+
+    # Extract the first key-value pair
+    subject_name, lecture_name = list(subject_lec.items())[0]
+
+    # ✅ Use a dictionary to maintain order
+    subject_lec_data = {subject_name: lecture_name}
+    # print(subject_lec_data)  # This will show single quotes (Python representation)
+    
+
+    # Return the data using jsonify to ensure double quotes
+    return jsonify({"message":"Data sent successfully"})
+
 
 # def train_model():
 #     """Endpoint to train the LBPH face recognizer."""
@@ -310,5 +351,10 @@ def train():
 #         return jsonify({"error": str(e)}), 500
 
 
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+# @app.route("/")
+# def home():
+#     return "Flask is running!"
+
+if __name__ == '__main__':
+    app.run()
+    # app.run(debug=True)
